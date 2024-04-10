@@ -1,4 +1,5 @@
-﻿using Microsoft.IdentityModel.Tokens;
+﻿using Cafe_management_system.Models;
+using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
@@ -25,6 +26,58 @@ namespace Cafe_management_system
             JwtSecurityTokenHandler handler = new JwtSecurityTokenHandler();
             JwtSecurityToken token = handler.CreateJwtSecurityToken(descriptor);
             return handler.WriteToken(token);
+        }
+
+        public static ClaimsPrincipal GetPrincipal(string token)
+        {
+            try
+            {
+                JwtSecurityTokenHandler tokenHandler = new JwtSecurityTokenHandler();
+                JwtSecurityToken jwtToken = (JwtSecurityToken)tokenHandler.ReadToken(token);
+                if(jwtToken == null)
+                {
+                    return null;
+                }
+                TokenValidationParameters parameters = new TokenValidationParameters()
+                {
+                    RequireExpirationTime = true,
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Secret))
+                };
+
+                SecurityToken securityToken;
+                ClaimsPrincipal principal = tokenHandler.ValidateToken(token, parameters, out securityToken);
+                return principal;
+            }
+            catch(Exception ex)
+            {
+                return null;
+            }
+        }
+
+        public static TokenClaim ValidateToken(string RawToken)
+        {
+            string[] array = RawToken.Split(' ');
+            var token = array[1];
+            ClaimsPrincipal principal = GetPrincipal(token);
+            if (principal == null)
+                return null;
+            ClaimsIdentity identity = null;
+            try {
+                identity = (ClaimsIdentity)principal.Identity;
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+
+            TokenClaim tokenClaim = new TokenClaim();
+            var temp = identity.FindFirst(ClaimTypes.Email);
+            tokenClaim.Email = temp.Value;
+            temp = identity.FindFirst(ClaimTypes.Role);
+            tokenClaim.Role = temp.Value;
+            return tokenClaim;
         }
     }
 }
